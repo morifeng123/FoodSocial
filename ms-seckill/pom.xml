@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>ms-oauth2-server</artifactId>
+    <artifactId>ms-seckill</artifactId>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -27,11 +27,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        <!-- spring data redis -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
         <!-- mybatis -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
@@ -42,32 +37,16 @@
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
         </dependency>
-        <!-- spring cloud security -->
+        <!-- spring data redis -->
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-security</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
-        <!-- spring cloud oauth2 -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-oauth2</artifactId>
-        </dependency>
-        <!-- commons 公共项目 -->
+        <!-- commons -->
         <dependency>
             <groupId>com.xmo</groupId>
             <artifactId>ms-commons</artifactId>
             <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <!-- 自定义的元数据依赖 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

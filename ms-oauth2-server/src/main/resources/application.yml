@@ -35,8 +35,8 @@ client:
       - password
       - refresh_token
     # token 有效时间，单位秒
-    token-validity-time: 3600
-    refresh-token-validity-time: 3600
+    token-validity-time: 2592000
+    refresh-token-validity-time: 259200
     # 客户端访问范围
     scopes:
       - api
