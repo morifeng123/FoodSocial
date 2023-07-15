@@ -10,6 +10,9 @@ spring:
     username: root
     password: feng20010729
     url: jdbc:mysql://119.91.229.58:3306/db_imooc?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useUnicode=true&useSSL=false
+    hikari:
+      maximum-pool-size: 10
+      idle-timeout: 30000
   # Redis
   redis:
     port: 6379

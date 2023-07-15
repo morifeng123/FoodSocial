@@ -1,0 +1,17 @@
+{
+  "groups": [
+    {
+      "name": "secure.ignore",
+      "type": "com.xmo.gateway.config.IgnoreUrlsConfig",
+      "sourceType": "com.xmo.gateway.config.IgnoreUrlsConfig"
+    }
+  ],
+  "properties": [
+    {
+      "name": "secure.ignore.urls",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.xmo.gateway.config.IgnoreUrlsConfig"
+    }
+  ],
+  "hints": []
+}

@@ -46,8 +46,6 @@ public class UserController {
         return ResultInfoUtil.buildSuccess(request.getServletPath(), dinerInfo);
     }
 
-    //    http://localhost:8082/user/me?access_token=b225742f-e00c-4c23-acd5-6657b762b1be
-
     @GetMapping("user/logout")
     public ResultInfo logout(String access_token, String authorization) {
         // 判断 access_token 是否为空，为空将authorization赋值给access_token
