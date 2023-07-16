@@ -7,6 +7,7 @@ import com.xmo.commons.constant.ApiConstant;
 import com.xmo.commons.model.domain.ResultInfo;
 import com.xmo.commons.model.dto.DinersDTO;
 import com.xmo.commons.model.pojo.Diners;
+import com.xmo.commons.model.vo.ShortDinerInfo;
 import com.xmo.commons.utils.AssertUtil;
 import com.xmo.commons.utils.ResultInfoUtil;
 import com.xmo.diners.config.OAuth2ClientConfiguration;
@@ -23,6 +24,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * @author 小莫同学
@@ -44,6 +46,19 @@ public class DinersService {
 
     @Resource
     private SendVerifyCodeService sendVerifyCodeService;
+
+    /**
+     * 根据 ids 查询食客信息
+     *
+     * @param ids 主键 id，多个以逗号分隔，逗号之间不用空格
+     * @return
+     */
+    public List<ShortDinerInfo> findByIds(String ids) {
+        AssertUtil.isNotEmpty(ids);
+        String[] idArr = ids.split(",");
+        List<ShortDinerInfo> dinerInfos = dinersMapper.findByIds(idArr);
+        return dinerInfos;
+    }
 
     /**
      * 用户注册

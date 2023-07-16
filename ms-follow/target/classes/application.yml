@@ -1,9 +1,9 @@
 server:
-  port: 8081 # 端口
+  port: 8084 # 端口
 
 spring:
   application:
-    name: ms-diners # 应用名
+    name: ms-follow # 应用名
   # 数据库
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -18,30 +18,12 @@ spring:
     port: 6379
     host: 119.91.229.58
     timeout: 3000
-    database: 1
+    database: 2
     password: 123456
   # swagger
   swagger:
-    base-package: com.xmo.diners
+    base-package: com.xmo.follow
     title: 小莫美食社交食客API接口文档
-
-# Oauth2 客户端信息
-oauth2:
-  client:
-    client-id: appId
-    secret: 123456
-    grant_type: password
-    scope: api
-
-# oauth2 服务地址
-service:
-  name:
-    ms-oauth-server: http://ms-oauth2-server/
-
-# Mybatis
-mybatis:
-  configuration:
-    map-underscore-to-camel-case: true # 开启驼峰映射
 
 # 配置 Eureka Server 注册中心
 eureka:
@@ -51,3 +33,16 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8080/eureka/
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true # 开启驼峰映射
+
+service:
+  name:
+    ms-oauth-server: http://ms-oauth2-server/
+    ms-diners-server: http://ms-diners/
+
+logging:
+  pattern:
+    console: '%d{HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n'

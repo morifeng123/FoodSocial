@@ -15,6 +15,7 @@
         <module>ms-commons</module>
         <module>ms-oauth2-server</module>
         <module>ms-seckill</module>
+        <module>ms-follow</module>
     </modules>
 
 
