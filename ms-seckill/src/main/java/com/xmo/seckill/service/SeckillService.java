@@ -2,8 +2,10 @@ package com.xmo.seckill.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.xmo.commons.constant.ApiConstant;
 import com.xmo.commons.constant.RedisKeyConstant;
+import com.xmo.commons.exception.ParameterException;
 import com.xmo.commons.model.domain.ResultInfo;
 import com.xmo.commons.model.pojo.SeckillVouchers;
 import com.xmo.commons.model.pojo.VoucherOrders;
@@ -12,11 +14,13 @@ import com.xmo.commons.utils.AssertUtil;
 import com.xmo.commons.utils.ResultInfoUtil;
 import com.xmo.seckill.mapper.SeckillVouchersMapper;
 import com.xmo.seckill.mapper.VoucherOrdersMapper;
+import com.xmo.seckill.model.RedisLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
@@ -40,6 +44,8 @@ public class SeckillService {
     private RedisTemplate redisTemplate;
     @Resource
     private DefaultRedisScript defaultRedisScript;
+    @Resource
+    private RedisLock redisLock;
 
     /**
      * 抢购代金券
@@ -82,10 +88,12 @@ public class SeckillService {
         // 这里的data是一个LinkedHashMap，SignInDinerInfo
         SignInDinerInfo dinerInfo = BeanUtil.fillBeanWithMap((LinkedHashMap) resultInfo.getData(),
                 new SignInDinerInfo(), false);
+
         // 判断登录用户是否已抢到(一个用户针对这次活动只能买一次)
         VoucherOrders order = voucherOrdersMapper.findDinerOrder(dinerInfo.getId(),
-                seckillVouchers.getId());
+                seckillVouchers.getFkVoucherId());
         AssertUtil.isTrue(order != null, "该用户已抢到该代金券，无需再抢");
+
 
         // 注释原始的 关系型数据库 的流程
         // 扣库存
@@ -97,29 +105,49 @@ public class SeckillService {
 //        Long count = redisTemplate.opsForHash().increment(key, "amount", -1);
 //        AssertUtil.isTrue(count < 0, "该券已经卖完了");
 
+        //使用 redis 锁一个账号只能购买一次
+        String lockName = RedisKeyConstant.lock_key.getKey()
+                + dinerInfo.getId() + ":" + voucherId;
+        //过期时间 为 活动过期时间减去现在时间
+        long expireTime = seckillVouchers.getEndTime().getTime() - now.getTime();
+        String lockKey = redisLock.tryLock(lockName, expireTime);
+
+        try {
+            // 不为空意味着拿到锁了，执行下单
+            if (StrUtil.isNotBlank(lockKey)) {
+                // 下单
+                VoucherOrders voucherOrders = new VoucherOrders();
+                voucherOrders.setFkDinerId(dinerInfo.getId());
+                // voucherOrders.setFkSeckillId(seckillVouchers.getId());
+                voucherOrders.setFkVoucherId(seckillVouchers.getFkVoucherId());
+                String orderNo = IdUtil.getSnowflake(1, 1).nextIdStr();
+                voucherOrders.setOrderNo(orderNo);
+                voucherOrders.setOrderType(1);
+                voucherOrders.setStatus(0);
+                int count = voucherOrdersMapper.save(voucherOrders);
+                AssertUtil.isTrue(count == 0, "用户抢购失败");
 
 
-        // 下单
-        VoucherOrders voucherOrders = new VoucherOrders();
-        voucherOrders.setFkDinerId(dinerInfo.getId());
-//        voucherOrders.setFkSeckillId(seckillVouchers.getId());
-        voucherOrders.setFkVoucherId(seckillVouchers.getFkVoucherId());
-        String orderNo = IdUtil.getSnowflake(1, 1).nextIdStr();
-        voucherOrders.setOrderNo(orderNo);
-        voucherOrders.setOrderType(1);
-        voucherOrders.setStatus(0);
-        int count =  voucherOrdersMapper.save(voucherOrders);
-        AssertUtil.isTrue(count == 0, "用户抢购失败");
+                // 采用 Redis + lua
+                // 扣库存
+                List<String> keys = new ArrayList<>();
+                keys.add(key);
+                keys.add("amount");
+                // 执行 lua 脚本
+                Long amount = (Long) redisTemplate.execute(defaultRedisScript, keys);
+                AssertUtil.isTrue(amount == null || amount < 1, "该券已经卖完了");
 
+            }
+        } catch (Exception e) {
+            // 手动回滚事务
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            // 解锁
+            redisLock.unlock(lockName,lockKey);
+            if (e instanceof ParameterException){
+                return ResultInfoUtil.buildError(0,"该券已经卖完了",path);
+            }
+        }
 
-        // 采用 Redis + lua
-        // 扣库存
-        List<String> keys = new ArrayList<>();
-        keys.add(key);
-        keys.add("amount");
-        // 执行 lua 脚本
-        Long amount = (Long) redisTemplate.execute(defaultRedisScript, keys);
-        AssertUtil.isTrue(amount == null || amount < 1, "该券已经卖完了");
 
         return ResultInfoUtil.buildSuccess(path, "抢购成功");
     }
