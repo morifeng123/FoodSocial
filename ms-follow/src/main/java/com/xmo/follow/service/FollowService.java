@@ -16,7 +16,12 @@ import io.swagger.models.auth.In;
 import org.apache.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
@@ -47,6 +52,8 @@ public class FollowService {
     private FollowMapper followMapper;
     @Resource
     private RedisTemplate redisTemplate;
+    @Value("${service.name.ms-feeds-server}")
+    private String feedsServerName;
 
     /**
      * 获取粉丝列表
@@ -66,7 +73,6 @@ public class FollowService {
 
     /**
      * 共同关注的列表
-     *
      * @param dinerId
      * @param accessToken
      * @param path
@@ -130,6 +136,8 @@ public class FollowService {
             // 添加 Redis 关注的列表
             if (count == 1) {
                 addToRedisSet(dinerInfo.getId(), followDinerId);
+                // 保存 Feed
+                sendSaveOrRemoveFeed(followDinerId, accessToken, 1);
             }
             return ResultInfoUtil.build(ApiConstant.SUCCESS_CODE,
                     "关注成功", path, "关注成功");
@@ -141,9 +149,11 @@ public class FollowService {
             // 移除 Redis 关注的列表
             if (count == 1) {
                 removeFromRedisSet(dinerInfo.getId(), followDinerId);
-                return ResultInfoUtil.build(ApiConstant.SUCCESS_CODE,
-                        "成功取关", path, "成功取关");
+                // 移除 Feed
+                sendSaveOrRemoveFeed(followDinerId, accessToken, 0);
             }
+            return ResultInfoUtil.build(ApiConstant.SUCCESS_CODE,
+                    "成功取关", path, "成功取关");
         }
         // 如果有关注信息，且目前处于取关状态，且要进行关注操作 -- 重新关注
         if (follow != null && follow.getIsValid() == 0 && isFollowed == 1) {
@@ -151,6 +161,8 @@ public class FollowService {
             int count = followMapper.update(follow.getId(), isFollowed);
             if (count == 1) {
                 addToRedisSet(dinerInfo.getId(), followDinerId);
+                // 保存 Feed
+                sendSaveOrRemoveFeed(followDinerId, accessToken, 1);
             }
             return ResultInfoUtil.build(ApiConstant.SUCCESS_CODE,
                     "关注成功", path, "关注成功");
@@ -159,6 +171,25 @@ public class FollowService {
         return ResultInfoUtil.buildSuccess(path, "操作成功");
     }
 
+    /**
+     * 发送请求添加或者移除关注人的Feed列表
+     *
+     * @param followDinerId 关注好友的ID
+     * @param accessToken   当前登录用户token
+     * @param type          0=取关 1=关注
+     */
+    private void sendSaveOrRemoveFeed(Integer followDinerId, String accessToken, int type) {
+        String feedsUpdateUrl = feedsServerName + "updateFollowingFeeds/"
+                + followDinerId + "?access_token=" + accessToken;
+        // 构建请求头
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        // 构建请求体（请求参数）
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("type", type);
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+        restTemplate.postForEntity(feedsUpdateUrl, entity, ResultInfo.class);
+    }
 
     /**
      * 获取登录用户信息
