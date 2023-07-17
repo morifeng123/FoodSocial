@@ -1,11 +1,15 @@
 package com.xmo.feeds.service;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
+import com.google.common.collect.Lists;
 import com.xmo.commons.constant.ApiConstant;
 import com.xmo.commons.constant.RedisKeyConstant;
 import com.xmo.commons.exception.ParameterException;
 import com.xmo.commons.model.domain.ResultInfo;
 import com.xmo.commons.model.pojo.Feeds;
+import com.xmo.commons.model.vo.FeedsVO;
+import com.xmo.commons.model.vo.ShortDinerInfo;
 import com.xmo.commons.model.vo.SignInDinerInfo;
 import com.xmo.commons.utils.AssertUtil;
 import com.xmo.feeds.mapper.FeedsMapper;
@@ -18,9 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +44,59 @@ public class FeedsService {
     private FeedsMapper feedsMapper;
     @Resource
     private RedisTemplate redisTemplate;
+
+
+    /**
+     * 根据时间由近至远， 每次查询20条Feed
+     *
+     * @param page
+     * @param accessToken
+     * @return
+     */
+    public List<FeedsVO> selectForPage(Integer page, String accessToken) {
+        // 获取登录用户
+        SignInDinerInfo dinerInfo = loadSignInDinersInfo(accessToken);
+        // 我   关注的用户 FeedKey
+        String key = RedisKeyConstant.following_feeds.getKey() + dinerInfo.getId();
+        // SortedSet 的 ZREVERANGE 命令是闭区间
+        long start = (page - 1) * ApiConstant.PAGE_SIZE;
+        long end = page * ApiConstant.PAGE_SIZE - 1;
+        Set<Integer> feedIds = redisTemplate.opsForZSet().reverseRange(key, start, end);
+        if (feedIds == null || feedIds.isEmpty()){
+            return Lists.newArrayList();
+        }
+        // 查询feed
+        List<Feeds> feedsList = feedsMapper.findFeedsByIds(feedIds);
+        // 初始化关注好友 id 集合
+        List<Integer> followingDinerIds = new ArrayList<>();
+        // 添加用户 id 至集合
+        List<FeedsVO> feedsVOList = feedsList.stream().map(feed -> {
+            FeedsVO feedsVO = new FeedsVO();
+            BeanUtil.copyProperties(feed, feedsVO);
+            //添加用户Id
+            followingDinerIds.add(feed.getFkDinerId());
+            return feedsVO;
+        }).collect(Collectors.toList());
+        // 远程调用获取 Feed 中用户信息
+        ResultInfo resultInfo = restTemplate.getForObject(dinersServerName + "findByIds?access_token=${accessToken}&ids={ids}",
+                ResultInfo.class, accessToken, StrUtil.join(",", followingDinerIds));
+        if (resultInfo.getCode() != ApiConstant.SUCCESS_CODE) {
+            throw new ParameterException(resultInfo.getCode(), resultInfo.getMessage());
+        }
+        List<LinkedHashMap> dinerInfoMaps= (ArrayList) resultInfo.getData();
+        // 构建一个 key 为用户 ID，value 为 ShortDinerInfo 的 Map
+        Map<Integer, ShortDinerInfo> dinerInfos = dinerInfoMaps.stream()
+                .collect(Collectors.toMap(
+                        // key
+                        diner -> (Integer) diner.get("id"),
+                        // value
+                        diner -> BeanUtil.fillBeanWithMap(diner,new ShortDinerInfo(),true)
+                ));
+        // 返回VO
+        feedsVOList.forEach(feedsVO -> feedsVO.setDinerInfo(dinerInfos.get(feedsVO.getFkDinerId())));
+        return feedsVOList;
+    }
+
 
     /**
      * 变更Feed
@@ -146,6 +201,7 @@ public class FeedsService {
 
     /**
      * 获取粉丝列表
+     *
      * @param dinerId
      * @return
      */
