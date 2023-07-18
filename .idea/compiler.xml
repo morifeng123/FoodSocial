@@ -8,6 +8,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="ms-registry" />
+        <module name="ms-points" />
         <module name="ms-diners" />
         <module name="ms-follow" />
         <module name="ms-oauth2-server" />

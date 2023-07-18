@@ -22,7 +22,6 @@ public class FollowController {
      *  获取粉丝列表
      * @param dinerId
      * @param
-     * @param path
      * @return
      */
     @GetMapping("followers/{dinerId}")
