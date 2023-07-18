@@ -14,6 +14,7 @@
         <module name="ms-oauth2-server" />
         <module name="ms-seckill" />
         <module name="ms-commons" />
+        <module name="ms-restaurants" />
         <module name="ms-feeds" />
         <module name="ms-gateway" />
       </profile>
